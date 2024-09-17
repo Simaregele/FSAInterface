@@ -1,14 +1,26 @@
 import streamlit as st
 import pandas as pd
-from api import search_fsa
+from api import search_fsa, get_document_details
 from utils import format_date, flatten_dict
+from auth import authenticator
 
 st.set_page_config(layout="wide")
 
 def main():
     st.title("Поиск в базе FSA")
 
-    # Создаем поля ввода для параметров
+    if not authenticator.is_authenticated():
+        authenticator.login()
+    else:
+        show_search_interface()
+
+def show_search_interface():
+    # Добавляем кнопку выхода
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        authenticator.logout()
+
+    # Остальной код интерфейса поиска
     col1, col2, col3 = st.columns(3)
     with col1:
         rn = st.text_input("Регистрационный номер")
@@ -51,12 +63,12 @@ def main():
 
         if results:
             # Обновляем информацию о пагинации
-            total_pages = results.get('totalPages') or results.get('pagination', {}).get('totalPages', 1)
-            total_results = results.get('total') or results.get('pagination', {}).get('total', 0)
+            total_pages = results.get('totalPages', 1)
+            total_results = results.get('total', 0)
             st.session_state.total_pages = total_pages
 
             # Получаем список элементов
-            items = results.get('items') or results.get('pagination', {}).get('items', [])
+            items = results.get('items', [])
 
             # Преобразуем результаты в более удобный формат
             formatted_results = []
@@ -114,7 +126,11 @@ def main():
             if selected_items:
                 st.subheader("Подробная информация о выбранных документах:")
                 for index in selected_items:
-                    st.json(items[index])
+                    item = items[index]
+                    doc_type = "declaration" if item["Type"] == "D" else "certificate"
+                    details = get_document_details(item["ID"], doc_type)
+                    if details:
+                        st.json(details)
 
             # Пагинация
             col1, col2, col3 = st.columns([1, 3, 1])
