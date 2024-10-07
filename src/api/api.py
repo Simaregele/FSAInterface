@@ -1,7 +1,7 @@
 import requests
 import streamlit as st
-from config import load_config
-from auth import authenticator
+from config.config import load_config
+from src.auth import authenticator
 
 config = load_config()
 

@@ -1,8 +1,9 @@
 import streamlit as st
-import pandas as pd
-from api import search_fsa, get_document_details
-from utils import format_date, flatten_dict
-from auth import authenticator
+from src.api.api import search_fsa, get_document_details
+from src.api.document_file_creator import create_document_file
+from src.auth import authenticator
+from src.utils.certificate_generator import generate_certificate
+from src.ui.ui_components import display_search_form, display_results_table, display_pagination, display_download_button
 
 st.set_page_config(layout="wide")
 
@@ -15,23 +16,11 @@ def main():
         show_search_interface()
 
 def show_search_interface():
-    # Добавляем кнопку выхода
     col1, col2 = st.columns([3, 1])
     with col2:
         authenticator.logout()
 
-    # Остальной код интерфейса поиска
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        rn = st.text_input("Регистрационный номер")
-        country = st.text_input("Страна производства")
-    with col2:
-        doc_type = st.selectbox("Тип документа", ["", "C", "D"],
-                                format_func=lambda x: "Сертификаты" if x == "C" else "Декларации" if x == "D" else "Все")
-        manufacturer = st.text_input("Производитель")
-    with col3:
-        query = st.text_input("Поисковый запрос")
-        tnved = st.text_input("Код ТН ВЭД (поиск по началу кода)")
+    search_params = display_search_form()
 
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
@@ -43,116 +32,67 @@ def show_search_interface():
         st.session_state.search_params = {}
 
     if st.button("Поиск"):
-        # Формируем параметры запроса
-        params = {
-            "rn": rn,
-            "t": doc_type,
-            "country": country,
-            "manufacturer": manufacturer,
-            "q": query,
-            "tnved": tnved
-        }
-        # Удаляем пустые параметры
-        params = {k: v for k, v in params.items() if v}
-        st.session_state.search_params = params
+        st.session_state.search_params = {k: v for k, v in search_params.items() if v}
         st.session_state.current_page = 0
 
-    # Выполняем поиск или обновляем страницу
     if st.session_state.search_params:
         results = search_fsa(st.session_state.search_params, st.session_state.current_page)
 
         if results:
-            # Обновляем информацию о пагинации
-            total_pages = results.get('totalPages', 1)
+            st.session_state.total_pages = results.get('totalPages', 1)
             total_results = results.get('total', 0)
-            st.session_state.total_pages = total_pages
-
-            # Получаем список элементов
             items = results.get('items', [])
 
-            # Преобразуем результаты в более удобный формат
-            formatted_results = []
-            for index, item in enumerate(items):
-                flat_item = flatten_dict(item)
-                formatted_item = {
-                    "Выбрать": False,  # Добавляем чекбокс
-                    "ID": flat_item.get("ID", ""),
-                    "Номер": flat_item.get("Number", ""),
-                    "Тип": "Декларация" if flat_item.get("Type") == "D" else "Сертификат",
-                    "Статус": flat_item.get("Status", ""),
-                    "Дата регистрации": format_date(flat_item.get("RegistrationDate")),
-                    "Действителен до": format_date(flat_item.get("ValidityPeriod")),
-                    "Заявитель": flat_item.get("Applicant", ""),
-                    "Производитель": flat_item.get("Manufacturer_Name", ""),
-                    "Продукция": flat_item.get("Product_Name", ""),
-                    "ТН ВЭД": ", ".join(flat_item.get("Product_Tnveds", [])),
-                }
-                formatted_results.append(formatted_item)
+            if not items:
+                st.warning("По вашему запросу ничего не найдено.")
+            else:
+                st.subheader("Результаты поиска:")
+                st.write(f"Найдено результатов: {total_results}")
 
-            # Создаем DataFrame
-            df = pd.DataFrame(formatted_results)
+                edited_df = display_results_table(items)
 
-            # Отображаем результаты
-            st.subheader("Результаты поиска:")
-            st.write(f"Найдено результатов: {total_results}")
+                selected_items = edited_df[edited_df["Выбрать"]].index.tolist()
 
-            # Создаем конфигурацию колонок
-            column_config = {
-                "Выбрать": st.column_config.CheckboxColumn(
-                    "Выбрать",
-                    help="Выберите для просмотра подробной информации",
-                    default=False,
-                )
-            }
+                if selected_items:
+                    st.subheader("Подробная информация о выбранных документах:")
+                    selected_details = {}
+                    for index in selected_items:
+                        item = items[index]
+                        doc_type = "declaration" if item["Type"] == "D" else "certificate"
+                        details = get_document_details(item["ID"], doc_type)
+                        if details:
+                            selected_details[item["ID"]] = details
+                            st.json(details)
 
-            # Добавляем конфигурацию для остальных колонок, делая их неизменяемыми
-            for col in df.columns:
-                if col != "Выбрать":
-                    column_config[col] = st.column_config.Column(
-                        col,
-                        disabled=True
-                    )
+                    if st.button("Сгенерировать сертификаты для выбранных документов"):
+                        for doc_id, details in selected_details.items():
+                            pptx_content = generate_certificate(details)
+                            if pptx_content:
+                                st.download_button(
+                                    label=f"Скачать сертификат для {doc_id}",
+                                    data=pptx_content,
+                                    file_name=f"certificate_{doc_id}.pptx",
+                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                                )
+                            else:
+                                st.error(f"Не удалось сгенерировать сертификат для документа {doc_id}")
 
-            # Используем st.data_editor для отображения таблицы с чекбоксами
-            edited_df = st.data_editor(
-                df,
-                hide_index=True,
-                column_config=column_config,
-                use_container_width=True
-            )
+                    if st.button("Создать файлы документов"):
+                        for doc_id, details in selected_details.items():
+                            result = create_document_file(details)
+                            if result:
+                                st.success(f"Файл документа {doc_id} успешно создан.")
+                            else:
+                                st.error(f"Не удалось создать файл документа {doc_id}.")
 
-            # Отображаем подробную информацию о выбранных элементах
-            selected_items = edited_df[edited_df["Выбрать"]].index.tolist()
-            if selected_items:
-                st.subheader("Подробная информация о выбранных документах:")
-                for index in selected_items:
-                    item = items[index]
-                    doc_type = "declaration" if item["Type"] == "D" else "certificate"
-                    details = get_document_details(item["ID"], doc_type)
-                    if details:
-                        st.json(details)
-
-            # Пагинация
-            col1, col2, col3 = st.columns([1, 3, 1])
-            with col1:
-                if st.button("◀ Предыдущая") and st.session_state.current_page > 0:
-                    st.session_state.current_page -= 1
-                    st.rerun()
-            with col2:
-                st.write(f"Страница {st.session_state.current_page + 1} из {st.session_state.total_pages}")
-            with col3:
-                if st.button("Следующая ▶") and st.session_state.current_page < st.session_state.total_pages - 1:
-                    st.session_state.current_page += 1
+                new_page = display_pagination(st.session_state.current_page, st.session_state.total_pages)
+                if new_page != st.session_state.current_page:
+                    st.session_state.current_page = new_page
                     st.rerun()
 
-            # Добавляем возможность скачать результаты
-            csv = df.to_csv(index=False)
-            st.download_button(
-                label="Скачать результаты как CSV",
-                data=csv,
-                file_name="fsa_search_results.csv",
-                mime="text/csv",
-            )
+                display_download_button(edited_df)
+        else:
+            st.error("Произошла ошибка при выполнении поиска. Пожалуйста, попробуйте еще раз.")
 
 if __name__ == "__main__":
     main()
