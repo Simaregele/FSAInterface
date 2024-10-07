@@ -1,0 +1,16 @@
+{
+    "api_base_url": "http://fsa.arko.one/api",
+    "auth_url": "http://fsa.arko.one/api/auth-api/token",
+    "search_endpoint": "/search-api/search",
+    "document_endpoints": {
+        "declaration": "/search-api/documents/declaration",
+        "certificate": "/search-api/documents/certificate"
+    },
+    "sync_endpoints": {
+        "declaration": "/loader-api/sync-document/declaration",
+        "certificate": "/loader-api/sync-document/certificate"
+    },
+    "page_size": 20,
+    "max_retries": 3,
+    "timeout": 30
+}
