@@ -7,7 +7,7 @@ import io
 
 # URL для локального API генерации сертификатов
 # CERTIFICATE_API_URL = "http://localhost:8000/generate_certificate"
-CERTIFICATE_API_URL = "http://91.92.136.247:8081/generate_certificate"
+CERTIFICATE_API_URL = "http://91.92.136.247:8001/generate_certificate"
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
