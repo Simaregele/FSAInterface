@@ -3,14 +3,16 @@ import json
 from typing import Dict, Any
 import sys
 import io
+import logging
 
+# Настройка логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # URL для локального API генерации сертификатов
 # CERTIFICATE_API_URL = "http://localhost:8000/generate_certificate"
-CERTIFICATE_API_URL = "http://91.92.136.247:8001/generate_certificate"
+CERTIFICATE_API_URL = "http://91.92.136.247:8002/generate_certificate"
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
 
 def utf8_encode_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     """Рекурсивно кодирует все строковые значения в словаре в UTF-8."""
@@ -31,7 +33,6 @@ def utf8_encode_dict(data: Dict[str, Any]) -> Dict[str, Any]:
             result[key] = value
     return result
 
-
 def get_nested_value(data: Dict[str, Any], path: str, default: Any = '') -> Any:
     keys = path.split('.')
     value = data
@@ -48,11 +49,9 @@ def get_nested_value(data: Dict[str, Any], path: str, default: Any = '') -> Any:
             return default
     return value if value != {} else default
 
-
 def filter_contacts(contacts: list, id_type: int) -> str:
     filtered = [c['value'] for c in contacts if c.get('idContactType') == id_type]
     return filtered[0] if filtered else ''
-
 
 def stringify_values(obj):
     if isinstance(obj, dict):
@@ -64,9 +63,8 @@ def stringify_values(obj):
     else:
         return str(obj)
 
-
 def process_complex_json(data: Dict[str, Any]) -> Dict[str, str]:
-    print("Входные данные:", json.dumps(data, ensure_ascii=False, indent=2))
+    logging.info("Входные данные: %s", json.dumps(data, ensure_ascii=False, indent=2))
     data = stringify_values(data)
     result = {}
     result['certificate_number'] = get_nested_value(data, 'RegistryData.number')
@@ -143,12 +141,8 @@ def process_complex_json(data: Dict[str, Any]) -> Dict[str, str]:
 
     return result
 
-
 def generate_certificate(data: Dict[str, Any]) -> bytes:
     try:
-        # Обрабатываем данные перед отправкой
-        # processed_data = process_complex_json(data)
-
         # Преобразуем все строковые значения в UTF-8
         utf8_data = utf8_encode_dict(data)
 
@@ -158,8 +152,8 @@ def generate_certificate(data: Dict[str, Any]) -> bytes:
         # Преобразуем payload в JSON
         payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Выводим отправляемые данные для отладки
-        print("Отправляемые данные:", payload_json)
+        # Логируем отправляемые данные для отладки
+        logging.info("Отправляемые данные: %s", payload_json)
 
         # Отправляем запрос
         response = requests.post(
@@ -169,15 +163,15 @@ def generate_certificate(data: Dict[str, Any]) -> bytes:
         )
         response.raise_for_status()
 
-        # Добавим вывод ответа сервера для отладки
-        print("Ответ сервера:", response.text)
+        # Логируем ответ сервера для отладки
+        logging.info("Ответ сервера: %s", response.text)
 
         return response.content
     except requests.RequestException as e:
-        print(f"Ошибка при генерации сертификата: {str(e)}")
-        # Добавим вывод полной информации об ошибке
-        print(f"Полная информация об ошибке: {str(e)}")
+        logging.error("Ошибка при генерации сертификата: %s", str(e))
+        # Логируем полную информацию об ошибке
+        logging.error("Полная информация об ошибке: %s", str(e))
         if hasattr(e, 'response') and e.response is not None:
-            print(f"Статус код: {e.response.status_code}")
-            print(f"Содержимое ответа: {e.response.text}")
+            logging.error("Статус код: %s", e.response.status_code)
+            logging.error("Содержимое ответа: %s", e.response.text)
         return None
