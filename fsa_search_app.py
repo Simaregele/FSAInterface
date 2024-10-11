@@ -48,10 +48,20 @@ def show_search_interface():
     if st.session_state.search_params:
         results = search_fsa(st.session_state.search_params, st.session_state.current_page)
 
-        if results:
-            st.session_state.total_pages = results.get('totalPages', 1)
-            total_results = results.get('total', 0)
-            items = results.get('items', [])
+        if results is not None:
+            st.write(f"Тип результатов: {type(results)}")  # Отладочная информация
+
+            if isinstance(results, dict):
+                st.session_state.total_pages = results.get('totalPages', 1)
+                total_results = results.get('total', 0)
+                items = results.get('items', [])
+            elif isinstance(results, list):
+                st.session_state.total_pages = 1
+                total_results = len(results)
+                items = results
+            else:
+                st.error(f"Неожиданный формат результатов: {type(results)}")
+                return
 
             if not items:
                 st.warning("По вашему запросу ничего не найдено.")

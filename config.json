@@ -2,6 +2,7 @@
     "api_base_url": "http://fsa.arko.one/api",
     "auth_url": "http://fsa.arko.one/api/auth-api/token",
     "search_endpoint": "/search-api/search",
+    "search_one_endpoint": "/api/search_one",
     "document_endpoints": {
         "declaration": "/search-api/documents/declaration",
         "certificate": "/search-api/documents/certificate"

@@ -17,7 +17,10 @@ def search_fsa(params, page=0, page_size=20):
 
     response = requests.get(url, params=params, headers=headers)
     if response.status_code == 200:
-        return response.json()
+        result = response.json()
+        print(f"Тип результата: {type(result)}")  # Отладочная информация
+        print(f"Содержимое результата: {result}")  # Отладочная информация
+        return result
     elif response.status_code == 401:
         st.error("Ошибка аутентификации. Пожалуйста, войдите в систему снова.")
         st.session_state["authentication_status"] = False
