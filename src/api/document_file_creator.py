@@ -4,7 +4,9 @@ from config.config import load_config
 from src.auth import authenticator
 import json
 
+
 config = load_config()
+
 
 def create_document_file(document_data):
     url = f"{config['api_base_url']}{config['create_document_file_endpoint']}"

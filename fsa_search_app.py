@@ -2,10 +2,14 @@ import streamlit as st
 from src.api.api import search_fsa, get_document_details, search_one_fsa
 from src.api.document_file_creator import create_document_file
 from src.auth import authenticator
-from src.utils.certificate_generator import generate_certificate
+from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table, display_pagination, display_download_button
 
 st.set_page_config(layout="wide")
+
+def clear_generated_documents():
+    st.session_state.generated_documents = {}
+    st.session_state.downloaded_documents = {}
 
 def main():
     st.title("Поиск в базе FSA")
@@ -31,6 +35,12 @@ def show_search_interface():
     if 'search_params' not in st.session_state:
         st.session_state.search_params = {}
 
+    if 'generated_documents' not in st.session_state:
+        st.session_state.generated_documents = {}
+
+    if 'downloaded_documents' not in st.session_state:
+        st.session_state.downloaded_documents = {}
+
     if st.button("Поиск"):
         st.session_state.search_params = {k: v for k, v in search_params.items() if v}
         st.session_state.current_page = 0
@@ -49,8 +59,6 @@ def show_search_interface():
         results = search_fsa(st.session_state.search_params, st.session_state.current_page)
 
         if results is not None:
-            st.write(f"Тип результатов: {type(results)}")  # Отладочная информация
-
             if isinstance(results, dict):
                 st.session_state.total_pages = results.get('totalPages', 1)
                 total_results = results.get('total', 0)
@@ -84,18 +92,49 @@ def show_search_interface():
                             selected_details[item["ID"]] = details
                             st.json(details)
 
-                    if st.button("Сгенерировать сертификаты для выбранных документов"):
+                    if st.button("Сгенерировать документы для выбранных заявок"):
+                        clear_generated_documents()  # Очищаем предыдущие результаты
                         for doc_id, details in selected_details.items():
-                            pptx_content = generate_certificate(details)
-                            if pptx_content:
-                                st.download_button(
-                                    label=f"Скачать сертификат для {doc_id}",
-                                    data=pptx_content,
-                                    file_name=f"certificate_{doc_id}.pptx",
-                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                                )
+                            documents = generate_documents(details)
+                            if documents:
+                                st.session_state.generated_documents[doc_id] = documents
+                                st.success(f"Документы для заявки {doc_id} успешно сгенерированы!")
                             else:
-                                st.error(f"Не удалось сгенерировать сертификат для документа {doc_id}")
+                                st.error(f"Не удалось сгенерировать документы для заявки {doc_id}")
+                        st.rerun()  # Перезапускаем приложение для обновления интерфейса
+
+                    if st.session_state.generated_documents:
+                        for doc_id, documents in st.session_state.generated_documents.items():
+                            st.write(f"Документы для заявки {doc_id}:")
+                            col1, col2 = st.columns(2)
+
+                            with col1:
+                                if st.download_button(
+                                    label="Скачать сертификат",
+                                    data=documents['certificate_content'],
+                                    file_name=documents['certificate_filename'],
+                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                    key=f"cert_{doc_id}"
+                                ):
+                                    st.session_state.downloaded_documents.setdefault(doc_id, {})["certificate"] = True
+                                    st.rerun()
+
+                            with col2:
+                                if st.download_button(
+                                    label="Скачать доверенность",
+                                    data=documents['attorney_content'],
+                                    file_name=documents['attorney_filename'],
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key=f"atty_{doc_id}"
+                                ):
+                                    st.session_state.downloaded_documents.setdefault(doc_id, {})["attorney"] = True
+                                    st.rerun()
+
+                            # Обновляем текст кнопок, если документы уже скачаны
+                            if st.session_state.downloaded_documents.get(doc_id, {}).get("certificate"):
+                                st.write("Сертификат скачан")
+                            if st.session_state.downloaded_documents.get(doc_id, {}).get("attorney"):
+                                st.write("Доверенность скачана")
 
                     if st.button("Создать файлы документов"):
                         for doc_id, details in selected_details.items():
