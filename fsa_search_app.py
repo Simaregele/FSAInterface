@@ -7,9 +7,11 @@ from src.ui.ui_components import display_search_form, display_results_table, dis
 
 st.set_page_config(layout="wide")
 
+
 def clear_generated_documents():
     st.session_state.generated_documents = {}
     st.session_state.downloaded_documents = {}
+
 
 def main():
     st.title("Поиск в базе FSA")
