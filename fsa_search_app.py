@@ -19,6 +19,7 @@ def main():
     else:
         show_search_interface()
 
+
 def show_search_interface():
     col1, col2 = st.columns([3, 1])
     with col2:
