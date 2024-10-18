@@ -188,7 +188,7 @@ def generate_documents(data: Dict[str, Any]) -> Dict[str, Union[bytes, str]]:
         logging.info("Отправляемые данные: %s", payload_json)
 
         # Формируем полный URL для запроса генерации документов
-        generate_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{GENERATE_DOCUMENTS_ENDPOINT}"
+        generate_url = f"{config['CERTIFICATE_API_URL']}{GENERATE_DOCUMENTS_ENDPOINT}"
 
         # Отправляем запрос на генерацию документов
         response = requests.post(
