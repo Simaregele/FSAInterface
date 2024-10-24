@@ -58,7 +58,11 @@ def get_document_details(doc_id, doc_type):
 
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        return response.json()
+        # Получаем JSON из ответа
+        response_data = response.json()
+        # Добавляем поле docType
+        response_data['docType'] = doc_type
+        return response_data
     elif response.status_code == 401:
         st.error("Ошибка аутентификации. Пожалуйста, войдите в систему снова.")
         st.session_state["authentication_status"] = False

@@ -113,7 +113,7 @@ def show_search_interface():
 
                             with col1:
                                 if st.download_button(
-                                    label="Скачать сертификат",
+                                    label="Скачать сертификат / Декларацию.",
                                     data=documents['certificate_content'],
                                     file_name=documents['certificate_filename'],
                                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
