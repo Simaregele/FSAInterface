@@ -3,7 +3,7 @@ from src.api.api import search_fsa, get_document_details, search_one_fsa
 from src.api.document_file_creator import create_document_file
 from src.auth import authenticator
 from src.utils.certificate_generator import generate_documents
-from src.ui.ui_components import display_search_form, display_results_table, display_pagination, display_download_button
+from src.ui.ui_components import display_search_form, display_results_table
 
 st.set_page_config(layout="wide")
 
@@ -147,12 +147,6 @@ def show_search_interface():
                             else:
                                 st.error(f"Не удалось создать файл документа {doc_id}.")
 
-                new_page = display_pagination(st.session_state.current_page, st.session_state.total_pages)
-                if new_page != st.session_state.current_page:
-                    st.session_state.current_page = new_page
-                    st.rerun()
-
-                display_download_button(edited_df)
         else:
             st.error("Произошла ошибка при выполнении поиска. Пожалуйста, попробуйте еще раз.")
 

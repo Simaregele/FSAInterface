@@ -3,6 +3,22 @@ import pandas as pd
 from src.utils.utils import format_date, flatten_dict
 
 
+def generate_fsa_url(doc_type: str, doc_id: str) -> str:
+    """
+    Генерирует URL для просмотра документа на сайте FSA.
+
+    Args:
+        doc_type: тип документа ('D' для декларации, 'C' для сертификата)
+        doc_id: идентификатор документа
+
+    Returns:
+        str: полный URL для просмотра документа
+    """
+    base_url = "https://pub.fsa.gov.ru/rds"
+    type_segment = "declaration" if doc_type == "D" else "certificate"
+    return f"{base_url}/{type_segment}/view/{doc_id}/product"
+
+
 def display_search_form():
     st.subheader("Параметры поиска")
 
@@ -56,6 +72,7 @@ def display_results_table(items):
         formatted_item = {
             "Выбрать": False,
             "ID": flat_item.get("ID", ""),
+            "Ссылка": generate_fsa_url(flat_item.get("Type"), flat_item.get("ID")),
             "Номер": flat_item.get("Number", ""),
             "Тип": "Декларация" if flat_item.get("Type") == "D" else "Сертификат",
             "Статус": flat_item.get("Status", ""),
@@ -77,11 +94,18 @@ def display_results_table(items):
             "Выбрать",
             help="Выберите для просмотра подробной информации",
             default=False,
+        ),
+        "Ссылка": st.column_config.LinkColumn(
+            "Ссылка на FSA",
+            help="Ссылка на документ на сайте FSA",
+            validate="^https://.*",
+            max_chars=100,
+            display_text="Открыть"
         )
     }
 
     for col in df.columns:
-        if col != "Выбрать":
+        if col not in ["Выбрать", "Ссылка"]:
             column_config[col] = st.column_config.Column(
                 col,
                 disabled=True
@@ -94,28 +118,6 @@ def display_results_table(items):
         use_container_width=True
     )
 
-
-def display_pagination(current_page, total_pages):
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col1:
-        if st.button("◀ Предыдущая") and current_page > 0:
-            return current_page - 1
-    with col2:
-        st.write(f"Страница {current_page + 1} из {total_pages}")
-    with col3:
-        if st.button("Следующая ▶") and current_page < total_pages - 1:
-            return current_page + 1
-    return current_page
-
-
-def display_download_button(df):
-    csv = df.to_csv(index=False)
-    st.download_button(
-        label="Скачать результаты как CSV",
-        data=csv,
-        file_name="fsa_search_results.csv",
-        mime="text/csv",
-    )
 
 
 def display_document_details(details):
@@ -162,7 +164,3 @@ def display_search_one_button():
 
 def display_generate_certificates_button():
     return st.button("Сгенерировать сертификаты для выбранных документов")
-
-
-def display_create_document_files_button():
-    return st.button("Создать файлы документов")
