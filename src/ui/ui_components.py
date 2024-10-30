@@ -35,13 +35,12 @@ def display_search_form():
                                 format_func=lambda
                                     x: "Сертификаты" if x == "C" else "Декларации" if x == "D" else "Все")
         manufacturer = st.text_input("Производитель")
-        brand = st.text_input("Бренд")
-        tnved = st.text_input("Код ТН ВЭД (поиск по началу кода)")
+        branch_country = st.text_input("Страна филиала производителя")
 
     with col3:
         genders = st.text_input("Коды гендеров (через запятую)")
-        start_date = st.date_input("Дата начала действия")
-        end_date = st.date_input("Дата окончания действия")
+        brand = st.text_input("Бренд")
+        tnved = st.text_input("Код ТН ВЭД (поиск по началу кода)")
 
     advanced = st.expander("Расширенные параметры")
     with advanced:
@@ -53,13 +52,12 @@ def display_search_form():
         "t": doc_type,
         "country": country,
         "manufacturer": manufacturer,
+        "branchCountry": branch_country,
         "q": query,
         "tnved": tnved,
         "materials": materials,
         "brand": brand,
         "genders": genders,
-        "start_date": start_date.isoformat() if start_date else None,
-        "end_date": end_date.isoformat() if end_date else None,
         "applicant": applicant,
         "product_name": product_name
     }

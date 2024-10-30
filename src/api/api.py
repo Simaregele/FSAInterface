@@ -10,6 +10,10 @@ def search_fsa(params, page=0, page_size=20):
     params['page'] = page
     params['pageSize'] = page_size
 
+    # Добавляем поддержку поиска по филиалам
+    if 'branchCountry' in params and params['branchCountry']:
+        params['branchCountry'] = params['branchCountry']
+
     headers = {}
     token = authenticator.get_token()
     if token:
@@ -28,6 +32,7 @@ def search_fsa(params, page=0, page_size=20):
     else:
         st.error(f"Ошибка при запросе: {response.status_code}")
         return None
+
 
 def search_one_fsa(params):
     url = f"{config['api_base_url']}{config['search_one_endpoint']}"
