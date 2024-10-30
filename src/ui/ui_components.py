@@ -14,9 +14,9 @@ def generate_fsa_url(doc_type: str, doc_id: str) -> str:
     Returns:
         str: полный URL для просмотра документа
     """
-    base_url = "https://pub.fsa.gov.ru/rds"
+    base_url = "https://pub.fsa.gov.ru/rss"
     type_segment = "declaration" if doc_type == "D" else "certificate"
-    return f"{base_url}/{type_segment}/view/{doc_id}/product"
+    return f"{base_url}/{type_segment}/view/{doc_id}/manufacturer"
 
 
 def display_search_form():
