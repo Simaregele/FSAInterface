@@ -67,6 +67,11 @@ def display_results_table(items):
     formatted_results = []
     for item in items:
         flat_item = flatten_dict(item)
+        tnveds = flat_item.get("Product_Tnveds", [])
+        # Проверка на None и преобразование в пустой список если None
+        if tnveds is None:
+            tnveds = []
+
         formatted_item = {
             "Выбрать": False,
             "ID": flat_item.get("ID", ""),
@@ -79,7 +84,7 @@ def display_results_table(items):
             "Заявитель": flat_item.get("Applicant", ""),
             "Производитель": flat_item.get("Manufacturer_Name", ""),
             "Продукция": flat_item.get("Product_Name", ""),
-            "ТН ВЭД": ", ".join(flat_item.get("Product_Tnveds", [])),
+            "ТН ВЭД": ", ".join(tnveds),  # Используем обработанное значение
             "Бренд": flat_item.get("Brand", ""),
             "Материалы": ", ".join(flat_item.get("Materials", [])),
         }
