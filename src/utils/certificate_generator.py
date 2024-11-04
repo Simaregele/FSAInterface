@@ -211,7 +211,7 @@ def generate_documents(details: Dict[str, Any], search_data: Optional[Dict[str, 
         logging.info("Отправляемые данные: %s", payload_json)
 
         # Формируем полный URL для запроса генерации документов
-        generate_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{GENERATE_DOCUMENTS_ENDPOINT}"
+        generate_url = f"{config['CERTIFICATE_API_URL']}{GENERATE_DOCUMENTS_ENDPOINT}"
 
         # Отправляем запрос на генерацию документов
         response = requests.post(
@@ -230,8 +230,8 @@ def generate_documents(details: Dict[str, Any], search_data: Optional[Dict[str, 
         attorney_url = response_data['attorney_url']
 
         # Формируем полные URL'ы для скачивания документов
-        certificate_full_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{certificate_url}"
-        attorney_full_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{attorney_url}"
+        certificate_full_url = f"{config['CERTIFICATE_API_URL']}{certificate_url}"
+        attorney_full_url = f"{config['CERTIFICATE_API_URL']}{attorney_url}"
 
         # Скачиваем сертификат
         certificate_response = requests.get(certificate_full_url)
