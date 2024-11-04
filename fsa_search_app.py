@@ -29,6 +29,7 @@ def show_search_interface():
 
     search_params = display_search_form()
 
+    # Инициализация состояний
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 0
 
@@ -81,30 +82,48 @@ def show_search_interface():
                 st.write(f"Найдено результатов: {total_results}")
 
                 edited_df = display_results_table(items)
-
                 selected_items = edited_df[edited_df["Выбрать"]].index.tolist()
 
                 if selected_items:
                     st.subheader("Подробная информация о выбранных документах:")
                     selected_details = {}
+                    selected_search_data = {}  # Сохраняем данные из поиска
+
                     for index in selected_items:
                         item = items[index]
                         doc_type = "declaration" if item["Type"] == "D" else "certificate"
                         details = get_document_details(item["ID"], doc_type)
+
                         if details:
                             selected_details[item["ID"]] = details
-                            st.json(details)
+                            selected_search_data[item["ID"]] = item  # Сохраняем данные поиска
+
+                            # Показываем данные из обоих источников
+                            st.write(f"Документ {item['ID']}:")
+
+                            with st.expander("Данные из поиска"):
+                                st.json(item)
+
+                            with st.expander("Детальные данные"):
+                                st.json(details)
 
                     if st.button("Сгенерировать документы для выбранных заявок"):
                         clear_generated_documents()  # Очищаем предыдущие результаты
                         for doc_id, details in selected_details.items():
-                            documents = generate_documents(details)
+                            # Передаем оба набора данных в функцию генерации
+                            search_data = selected_search_data.get(doc_id, {})
+                            documents = generate_documents(details, search_data=search_data)
+
                             if documents:
                                 st.session_state.generated_documents[doc_id] = documents
                                 st.success(f"Документы для заявки {doc_id} успешно сгенерированы!")
+
+                                # Показываем данные, использованные при генерации
+                                with st.expander(f"Данные, использованные для генерации {doc_id}"):
+                                    st.json(documents.get('merged_data', {}))
                             else:
                                 st.error(f"Не удалось сгенерировать документы для заявки {doc_id}")
-                        st.rerun()  # Перезапускаем приложение для обновления интерфейса
+                        st.rerun()
 
                     if st.session_state.generated_documents:
                         for doc_id, documents in st.session_state.generated_documents.items():
@@ -113,27 +132,26 @@ def show_search_interface():
 
                             with col1:
                                 if st.download_button(
-                                    label="Скачать сертификат / Декларацию.",
-                                    data=documents['certificate_content'],
-                                    file_name=documents['certificate_filename'],
-                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                    key=f"cert_{doc_id}"
+                                        label="Скачать сертификат / Декларацию",
+                                        data=documents['certificate_content'],
+                                        file_name=documents['certificate_filename'],
+                                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                        key=f"cert_{doc_id}"
                                 ):
                                     st.session_state.downloaded_documents.setdefault(doc_id, {})["certificate"] = True
                                     st.rerun()
 
                             with col2:
                                 if st.download_button(
-                                    label="Скачать доверенность",
-                                    data=documents['attorney_content'],
-                                    file_name=documents['attorney_filename'],
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"atty_{doc_id}"
+                                        label="Скачать доверенность",
+                                        data=documents['attorney_content'],
+                                        file_name=documents['attorney_filename'],
+                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                        key=f"atty_{doc_id}"
                                 ):
                                     st.session_state.downloaded_documents.setdefault(doc_id, {})["attorney"] = True
                                     st.rerun()
 
-                            # Обновляем текст кнопок, если документы уже скачаны
                             if st.session_state.downloaded_documents.get(doc_id, {}).get("certificate"):
                                 st.write("Сертификат скачан")
                             if st.session_state.downloaded_documents.get(doc_id, {}).get("attorney"):
@@ -141,7 +159,12 @@ def show_search_interface():
 
                     if st.button("Создать файлы документов"):
                         for doc_id, details in selected_details.items():
-                            result = create_document_file(details)
+                            # Для создания файлов также используем объединенные данные
+                            search_data = selected_search_data.get(doc_id, {})
+                            merged_details = details.copy()
+                            merged_details.update({f'search_{k}': v for k, v in search_data.items()})
+
+                            result = create_document_file(merged_details)
                             if result:
                                 st.success(f"Файл документа {doc_id} успешно создан.")
                             else:
@@ -149,6 +172,7 @@ def show_search_interface():
 
         else:
             st.error("Произошла ошибка при выполнении поиска. Пожалуйста, попробуйте еще раз.")
+
 
 if __name__ == "__main__":
     main()

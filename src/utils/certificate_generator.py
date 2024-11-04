@@ -1,6 +1,6 @@
 import requests
 import json
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Optional
 import sys
 import io
 import logging
@@ -176,14 +176,37 @@ def process_dates_and_personnel(data: Dict[str, Any]) -> Dict[str, str]:
     return result
 
 
-def generate_documents(data: Dict[str, Any]) -> Dict[str, Union[bytes, str]]:
+def generate_documents(details: Dict[str, Any], search_data: Optional[Dict[str, Any]] = None) -> Dict[
+    str, Union[bytes, str]]:
+    """
+    Генерирует документы с учетом данных как из деталей документа, так и из результатов поиска
+
+    Args:
+        details: детальная информация о документе
+        search_data: дополнительные данные из результатов поиска FSA
+    """
     try:
         # Эндпоинт для генерации документов
         GENERATE_DOCUMENTS_ENDPOINT = "/generate_documents"
 
+        # Создаем копию деталей для объединения данных
+        merged_data = details.copy()
+
+        # Если есть данные из поиска, добавляем их с префиксом 'search_'
+        if search_data:
+            for key, value in search_data.items():
+                if key not in merged_data:
+                    # Добавляем оригинальные данные с префиксом
+                    merged_data[f'search_{key}'] = value
+                    # Отдельно сохраняем TNVED коды
+                    if key == 'TNVED':
+                        merged_data['tnved_codes'] = value
+
         # Преобразуем все строковые значения в UTF-8
-        utf8_data = utf8_encode_dict(data)
+        utf8_data = utf8_encode_dict(merged_data)
         payload = {"data": utf8_data}
+
+        # Логируем отправляемые данные
         payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
         logging.info("Отправляемые данные: %s", payload_json)
 
@@ -218,12 +241,19 @@ def generate_documents(data: Dict[str, Any]) -> Dict[str, Union[bytes, str]]:
         attorney_response = requests.get(attorney_full_url)
         attorney_response.raise_for_status()
 
-        return {
+        result = {
             'certificate_content': certificate_response.content,
             'certificate_filename': certificate_url.split('/')[-1],
             'attorney_content': attorney_response.content,
-            'attorney_filename': attorney_url.split('/')[-1]
+            'attorney_filename': attorney_url.split('/')[-1],
+            'merged_data': merged_data  # Сохраняем объединенные данные для reference
         }
+
+        # Логируем успешную генерацию
+        logging.info("Документы успешно сгенерированы для данных: %s",
+                     merged_data.get('ID', '') or merged_data.get('search_ID', 'Unknown ID'))
+
+        return result
 
     except requests.RequestException as e:
         logging.error("Ошибка при генерации сертификата и доверенности: %s", str(e))
