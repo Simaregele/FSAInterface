@@ -176,89 +176,46 @@ def process_dates_and_personnel(data: Dict[str, Any]) -> Dict[str, str]:
     return result
 
 
-def generate_documents(details: Dict[str, Any], search_data: Optional[Dict[str, Any]] = None) -> Dict[
-    str, Union[bytes, str]]:
-    """
-    Генерирует документы с учетом данных как из деталей документа, так и из результатов поиска
-
-    Args:
-        details: детальная информация о документе
-        search_data: дополнительные данные из результатов поиска FSA
-    """
+def generate_documents(details: Dict[str, Any], search_data: Optional[Dict[str, Any]] = None) -> Dict[str, Union[bytes, str]]:
     try:
-        # Эндпоинт для генерации документов
-        GENERATE_DOCUMENTS_ENDPOINT = "/generate_documents"
-
-        # Создаем копию деталей для объединения данных
+        # Подготовка данных не меняется
         merged_data = details.copy()
-
-        # Если есть данные из поиска, добавляем их с префиксом 'search_'
         if search_data:
             for key, value in search_data.items():
                 if key not in merged_data:
-                    # Добавляем оригинальные данные с префиксом
                     merged_data[f'search_{key}'] = value
-                    # Отдельно сохраняем TNVED коды
                     if key == 'TNVED':
                         merged_data['tnved_codes'] = value
 
-        # Преобразуем все строковые значения в UTF-8
         utf8_data = utf8_encode_dict(merged_data)
         payload = {"data": utf8_data}
 
-        # Логируем отправляемые данные
-        payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
-        logging.info("Отправляемые данные: %s", payload_json)
-
-        # Формируем полный URL для запроса генерации документов
-        generate_url = f"{config['CERTIFICATE_API_URL']}{GENERATE_DOCUMENTS_ENDPOINT}"
-
-        # Отправляем запрос на генерацию документов
+        # Отправка запроса
+        generate_url = f"{config['LOCAL_CERTIFICATE_API_URL']}/generate_documents"
         response = requests.post(
             generate_url,
             json=payload,
             headers={'Content-Type': 'application/json; charset=utf-8'}
         )
         response.raise_for_status()
-        logging.info("Ответ сервера: %s", response.text)
-
-        # Разбираем JSON-ответ
-        response_data = response.json()
-
-        # Получаем URL'ы документов из ответа
-        certificate_url = response_data['certificate_url']
-        attorney_url = response_data['attorney_url']
-
-        # Формируем полные URL'ы для скачивания документов
-        certificate_full_url = f"{config['CERTIFICATE_API_URL']}{certificate_url}"
-        attorney_full_url = f"{config['CERTIFICATE_API_URL']}{attorney_url}"
-
-        # Скачиваем сертификат
-        certificate_response = requests.get(certificate_full_url)
-        certificate_response.raise_for_status()
-
-        # Скачиваем доверенность
-        attorney_response = requests.get(attorney_full_url)
-        attorney_response.raise_for_status()
-
+        
+        # Получаем список документов в новом формате
+        documents_list = response.json()  # Теперь это список словарей с type, format, name, url
+        
         result = {
-            'certificate_content': certificate_response.content,
-            'certificate_filename': certificate_url.split('/')[-1],
-            'attorney_content': attorney_response.content,
-            'attorney_filename': attorney_url.split('/')[-1],
-            'merged_data': merged_data  # Сохраняем объединенные данные для reference
+            'documents': documents_list,  # Сохраняем весь список документов
+            'merged_data': merged_data    
         }
-
-        # Логируем успешную генерацию
+        
         logging.info("Документы успешно сгенерированы для данных: %s",
-                     merged_data.get('ID', '') or merged_data.get('search_ID', 'Unknown ID'))
-
+                    merged_data.get('ID', '') or merged_data.get('search_ID', 'Unknown ID'))
+        
         return result
 
     except requests.RequestException as e:
-        logging.error("Ошибка при генерации сертификата и доверенности: %s", str(e))
-        logging.error("Полная информация об ошибке: %s", str(e))
+        logging.error("Ошибка при генерации документов: %s", str(e))
         if hasattr(e, 'response') and e.response is not None:
             logging.error("Статус код: %s", e.response.status_code)
             logging.error("Содержимое ответа: %s", e.response.text)
         return {}
+

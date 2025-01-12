@@ -4,14 +4,17 @@ from src.api.document_file_creator import create_document_file
 from src.auth import authenticator
 from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
+from config.config import load_config
+import requests
 
 st.set_page_config(layout="wide")
 
+# Загружаем конфигурацию
+config = load_config()
 
 def clear_generated_documents():
     st.session_state.generated_documents = {}
     st.session_state.downloaded_documents = {}
-
 
 def main():
     st.title("Поиск в базе FSA")
@@ -20,7 +23,6 @@ def main():
         authenticator.login()
     else:
         show_search_interface()
-
 
 def show_search_interface():
     col1, col2 = st.columns([3, 1])
@@ -79,13 +81,13 @@ def show_search_interface():
                 st.warning("По вашему запросу ничего не найдено.")
             else:
                 st.subheader("Результаты поиска:")
-                st.write(f"Найдено результатов: {total_results}")
+                st.write(f"Нйдено результатов: {total_results}")
 
                 edited_df = display_results_table(items)
                 selected_items = edited_df[edited_df["Выбрать"]].index.tolist()
 
                 if selected_items:
-                    st.subheader("Подробная информация о выбранных документах:")
+                    st.subheader("Подробная информация о выбранных документа��:")
                     selected_details = {}
                     selected_search_data = {}  # Сохраняем данные из поиска
 
@@ -128,34 +130,42 @@ def show_search_interface():
                     if st.session_state.generated_documents:
                         for doc_id, documents in st.session_state.generated_documents.items():
                             st.write(f"Документы для заявки {doc_id}:")
-                            col1, col2 = st.columns(2)
-
-                            with col1:
-                                if st.download_button(
-                                        label="Скачать сертификат / Декларацию",
-                                        data=documents['certificate_content'],
-                                        file_name=documents['certificate_filename'],
-                                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                        key=f"cert_{doc_id}"
-                                ):
-                                    st.session_state.downloaded_documents.setdefault(doc_id, {})["certificate"] = True
-                                    st.rerun()
-
-                            with col2:
-                                if st.download_button(
-                                        label="Скачать доверенность",
-                                        data=documents['attorney_content'],
-                                        file_name=documents['attorney_filename'],
-                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                        key=f"atty_{doc_id}"
-                                ):
-                                    st.session_state.downloaded_documents.setdefault(doc_id, {})["attorney"] = True
-                                    st.rerun()
-
-                            if st.session_state.downloaded_documents.get(doc_id, {}).get("certificate"):
-                                st.write("Сертификат скачан")
-                            if st.session_state.downloaded_documents.get(doc_id, {}).get("attorney"):
-                                st.write("Доверенность скачана")
+                            
+                            # Создаем колонки динамически в зависимости от количества документов
+                            cols = st.columns(len(documents['documents']))
+                            
+                            for col, doc in zip(cols, documents['documents']):
+                                with col:
+                                    # Формируем полный URL для скачивания
+                                    download_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{doc['url']}"
+                                    
+                                    # Определяем MIME type на основе формата
+                                    mime_types = {
+                                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                                        'pdf': 'application/pdf'
+                                    }
+                                    mime_type = mime_types.get(doc['format'], 'application/octet-stream')
+                                    
+                                    # Получаем содержимое файла
+                                    file_response = requests.get(download_url)
+                                    if file_response.status_code == 200:
+                                        # Создаем кнопку скачивания с именем из ответа
+                                        button_label = f"Скачать {doc['name']}"
+                                        if st.download_button(
+                                            label=button_label,
+                                            data=file_response.content,
+                                            file_name=f"{doc['name']}.{doc['format']}",
+                                            mime=mime_type,
+                                            key=f"{doc_id}_{doc['type']}"
+                                        ):
+                                            st.session_state.downloaded_documents.setdefault(doc_id, {})
+                                            st.session_state.downloaded_documents[doc_id][doc['type']] = True
+                                            st.rerun()
+                                    
+                                    # Показываем статус скачивания
+                                    if st.session_state.downloaded_documents.get(doc_id, {}).get(doc['type']):
+                                        st.write(f"{doc['name']} скачан")
 
                     if st.button("Создать файлы документов"):
                         for doc_id, details in selected_details.items():
@@ -172,7 +182,6 @@ def show_search_interface():
 
         else:
             st.error("Произошла ошибка при выполнении поиска. Пожалуйста, попробуйте еще раз.")
-
 
 if __name__ == "__main__":
     main()
