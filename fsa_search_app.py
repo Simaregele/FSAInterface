@@ -6,6 +6,7 @@ from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
 from config.config import load_config
 import requests
+from src.ui.document_constructor_ui import DocumentConstructorUI
 
 st.set_page_config(layout="wide")
 
@@ -176,11 +177,19 @@ def show_search_interface():
                     st.subheader("Подробная информация о выбранных документах:")
                     selected_details, selected_search_data = display_document_details(selected_items, items)
 
-                    if st.button("Сгенерировать документы для выбранных заявок"):
-                        handle_document_generation(selected_details, selected_search_data)
-
-                    if st.session_state.generated_documents:
-                        display_generated_documents()
+                    # Инициализация UI конструктора документов
+                    doc_constructor_ui = DocumentConstructorUI()
+                    
+                    # Для каждого выбранного документа показываем форму генерации
+                    for doc_id, details in selected_details.items():
+                        search_data = selected_search_data.get(doc_id, {})
+                        merged_data = details.copy()
+                        merged_data.update({f'search_{k}': v for k, v in search_data.items()})
+                        
+                        doc_constructor_ui.display_document_generation_form(merged_data)
+                    
+                    # Отображение сгенерированных документов
+                    doc_constructor_ui.display_generated_documents()
 
                     if st.button("Создать файлы документов"):
                         handle_document_creation(selected_details, selected_search_data)
