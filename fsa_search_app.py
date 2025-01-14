@@ -2,19 +2,14 @@ import streamlit as st
 from src.api.api import search_fsa, get_document_details, search_one_fsa
 from src.api.document_file_creator import create_document_file
 from src.auth import authenticator
-from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
 from config.config import load_config
-import requests
+from src.ui.document_constructor_ui import DocumentConstructorUI
 
 st.set_page_config(layout="wide")
 
 # Загружаем конфигурацию
 config = load_config()
-
-def clear_generated_documents():
-    st.session_state.generated_documents = {}
-    st.session_state.downloaded_documents = {}
 
 def initialize_session_state():
     """Инициализация состояний сессии"""
@@ -77,55 +72,6 @@ def display_document_details(selected_items, items):
 
     return selected_details, selected_search_data
 
-def handle_document_generation(selected_details, selected_search_data):
-    """Обработка генерации документов"""
-    clear_generated_documents()
-    for doc_id, details in selected_details.items():
-        search_data = selected_search_data.get(doc_id, {})
-        documents = generate_documents(details, search_data=search_data)
-
-        if documents:
-            st.session_state.generated_documents[doc_id] = documents
-            st.success(f"Документы для заявки {doc_id} успешно сгенерированы!")
-            with st.expander(f"Данные, использованные для генерации {doc_id}"):
-                st.json(documents.get('merged_data', {}))
-        else:
-            st.error(f"Не удалось сгенерировать документы для заявки {doc_id}")
-    st.rerun()
-
-def display_generated_documents():
-    """Отображение сгенерированных документов"""
-    for doc_id, documents in st.session_state.generated_documents.items():
-        st.write(f"Документы для заявки {doc_id}:")
-        cols = st.columns(len(documents['documents']))
-        
-        for col, doc in zip(cols, documents['documents']):
-            with col:
-                download_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{doc['url']}"
-                mime_types = {
-                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                    'pdf': 'application/pdf'
-                }
-                mime_type = mime_types.get(doc['format'], 'application/octet-stream')
-                
-                file_response = requests.get(download_url)
-                if file_response.status_code == 200:
-                    button_label = f"Скачать {doc['name']}"
-                    if st.download_button(
-                        label=button_label,
-                        data=file_response.content,
-                        file_name=f"{doc['name']}.{doc['format']}",
-                        mime=mime_type,
-                        key=f"{doc_id}_{doc['type']}"
-                    ):
-                        st.session_state.downloaded_documents.setdefault(doc_id, {})
-                        st.session_state.downloaded_documents[doc_id][doc['type']] = True
-                        st.rerun()
-                
-                if st.session_state.downloaded_documents.get(doc_id, {}).get(doc['type']):
-                    st.write(f"{doc['name']} скачан")
-
 def handle_document_creation(selected_details, selected_search_data):
     """Обработка создания файлов документов"""
     for doc_id, details in selected_details.items():
@@ -176,14 +122,20 @@ def show_search_interface():
                     st.subheader("Подробная информация о выбранных документах:")
                     selected_details, selected_search_data = display_document_details(selected_items, items)
 
-                    if st.button("Сгенерировать документы для выбранных заявок"):
-                        handle_document_generation(selected_details, selected_search_data)
+                    # Инициализация UI конструктора документов
+                    doc_constructor_ui = DocumentConstructorUI()
+                    
+                    # Для каждого выбранного документа показываем форму генерации
+                    for doc_id, details in selected_details.items():
+                        search_data = selected_search_data.get(doc_id, {})
+                        merged_data = details.copy()
+                        merged_data.update({f'search_{k}': v for k, v in search_data.items()})
+                        
+                        doc_constructor_ui.display_document_generation_form(merged_data)
+                    
+                    # Отображение сгенерированных документов
+                    doc_constructor_ui.display_generated_documents()
 
-                    if st.session_state.generated_documents:
-                        display_generated_documents()
-
-                    if st.button("Создать файлы документов"):
-                        handle_document_creation(selected_details, selected_search_data)
         else:
             st.error("Произошла ошибка при выполнении поиска. Пожалуйста, попробуйте еще раз.")
 

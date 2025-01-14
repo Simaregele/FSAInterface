@@ -16,5 +16,5 @@
     "timeout": 30,
     "LOCAL_CERTIFICATE_API_URL": "http://localhost:8002",
     "CERTIFICATE_API_URL": "http://91.92.136.247:8001",
-    "just_info": "LOCAL_CERTIFICATE_API_URL on 191, 210 in certificate generator"
+    "just_info": "LOCAL_CERTIFICATE_API_URL on document_constructor.py"
 }
