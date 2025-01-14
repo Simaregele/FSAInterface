@@ -33,9 +33,13 @@ class DocumentConstructorUI:
             with st.spinner("Генерация документов..."):
                 result = self.constructor.generate_documents(document_data)
                 if result:
+                    # Сохраняем результат в session_state
                     st.session_state.generated_documents = result
+                    # Предварительно скачиваем все документы в кэш
+                    for doc in result.get('documents', []):
+                        self.constructor.download_document(doc['url'], doc_id)
                     st.success("Документы успешно сгенерированы!")
-                    st.rerun()
+                    st.rerun()  # Перезагрузка нужна только после генерации
 
     def display_generated_documents(self):
         """Отображение сгенерированных документов"""
@@ -55,6 +59,7 @@ class DocumentConstructorUI:
                 st.write(f"📄 {doc['name']}")
                 
             with col2:
+                # Получаем документ из кэша
                 content = self.constructor.download_document(doc['url'], doc_id)
                 if content:
                     mime_type = self.constructor.get_mime_type(doc['format'])
