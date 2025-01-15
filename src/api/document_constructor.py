@@ -17,7 +17,7 @@ config = Config.get_instance()
 
 class DocumentConstructor:
     def __init__(self):
-        self.base_url = config.get('CERTIFICATE_API_URL')
+        self.base_url = config.get('LOCAL_CERTIFICATE_API_URL')
         self.headers = {
             'Content-Type': 'application/json; charset=utf-8'
         }
