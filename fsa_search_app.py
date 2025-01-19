@@ -6,7 +6,7 @@ from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
 from config.config import load_config
 import requests
-from src.ui.document_download import display_document_download_button
+from src.ui.document_download import display_document_download_button, clear_document_cache
 
 st.set_page_config(layout="wide")
 
@@ -14,8 +14,11 @@ st.set_page_config(layout="wide")
 config = load_config()
 
 def clear_generated_documents():
+    """Очистка сгенерированных документов и их кэша"""
     st.session_state.generated_documents = {}
     st.session_state.downloaded_documents = {}
+    # Очищаем кэш документов
+    clear_document_cache()
 
 def main():
     st.title("Поиск в базе FSA")
@@ -111,9 +114,9 @@ def show_search_interface():
                                 st.json(details)
 
                     if st.button("Сгенерировать документы для выбранных заявок"):
+                        clear_generated_documents()  # Теперь очищает и кэш документов
                         # Инициализируем хранилище для сгенерированных документов
-                        if 'generated_documents' not in st.session_state:
-                            st.session_state.generated_documents = {}
+
                         
                         for doc_id, details in selected_details.items():
                             search_data = selected_search_data.get(doc_id, {})
