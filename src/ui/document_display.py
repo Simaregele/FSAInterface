@@ -20,16 +20,3 @@ def display_generated_documents_section(generated_documents, selected_details, s
                 with col:
                     display_document_download_button(doc, doc_id)
 
-        # Кнопка создания файлов
-        if st.button("Создать файлы документов"):
-            for doc_id, details in selected_details.items():
-                # Объединяем данные для создания файлов
-                search_data = selected_search_data.get(doc_id, {})
-                merged_details = details.copy()
-                merged_details.update({f'search_{k}': v for k, v in search_data.items()})
-
-                result = create_document_file(merged_details)
-                if result:
-                    st.success(f"Файл документа {doc_id} успешно создан.")
-                else:
-                    st.error(f"Не удалось создать файл документа {doc_id}.") 
