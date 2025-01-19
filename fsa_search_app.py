@@ -111,30 +111,30 @@ def show_search_interface():
                                 st.json(details)
 
                     if st.button("Сгенерировать документы для выбранных заявок"):
-                        clear_generated_documents()  # Очищаем предыдущие результаты
+                        # Инициализируем хранилище для сгенерированных документов
+                        if 'generated_documents' not in st.session_state:
+                            st.session_state.generated_documents = {}
+                        
                         for doc_id, details in selected_details.items():
-                            # Передаем оба набора данных в функцию генерации
                             search_data = selected_search_data.get(doc_id, {})
                             documents = generate_documents(details, search_data=search_data)
 
                             if documents:
                                 st.session_state.generated_documents[doc_id] = documents
                                 st.success(f"Документы для заявки {doc_id} успешно сгенерированы!")
-
-                                # Показываем данные, использованные при генерации
                                 with st.expander(f"Данные, использованные для генерации {doc_id}"):
                                     st.json(documents.get('merged_data', {}))
                             else:
                                 st.error(f"Не удалось сгенерировать документы для заявки {doc_id}")
+                        
+                        # Перезагружаем страницу только один раз после всех операций
                         st.rerun()
 
-                    if st.session_state.generated_documents:
+                    # Отображение сгенерированных документов
+                    if st.session_state.get('generated_documents'):
                         for doc_id, documents in st.session_state.generated_documents.items():
                             st.write(f"Документы для заявки {doc_id}:")
-                            
-                            # Создаем колонки динамически в зависимости от количества документов
                             cols = st.columns(len(documents['documents']))
-                            
                             for col, doc in zip(cols, documents['documents']):
                                 with col:
                                     display_document_download_button(doc, doc_id)
