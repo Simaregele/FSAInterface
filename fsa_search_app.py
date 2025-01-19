@@ -6,6 +6,7 @@ from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
 from config.config import load_config
 import requests
+from src.ui.document_download import display_document_download_button
 
 st.set_page_config(layout="wide")
 
@@ -87,7 +88,7 @@ def show_search_interface():
                 selected_items = edited_df[edited_df["Выбрать"]].index.tolist()
 
                 if selected_items:
-                    st.subheader("Подробная информация о выбранных документа��:")
+                    st.subheader("Подробная информация о выбранных документах:")
                     selected_details = {}
                     selected_search_data = {}  # Сохраняем данные из поиска
 
@@ -136,36 +137,7 @@ def show_search_interface():
                             
                             for col, doc in zip(cols, documents['documents']):
                                 with col:
-                                    # Формируем полный URL для скачивания
-                                    download_url = f"{config['LOCAL_CERTIFICATE_API_URL']}{doc['url']}"
-                                    
-                                    # Определяем MIME type на основе формата
-                                    mime_types = {
-                                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                                        'pdf': 'application/pdf'
-                                    }
-                                    mime_type = mime_types.get(doc['format'], 'application/octet-stream')
-                                    
-                                    # Получаем содержимое файла
-                                    file_response = requests.get(download_url)
-                                    if file_response.status_code == 200:
-                                        # Создаем кнопку скачивания с именем из ответа
-                                        button_label = f"Скачать {doc['name']}"
-                                        if st.download_button(
-                                            label=button_label,
-                                            data=file_response.content,
-                                            file_name=f"{doc['name']}.{doc['format']}",
-                                            mime=mime_type,
-                                            key=f"{doc_id}_{doc['type']}"
-                                        ):
-                                            st.session_state.downloaded_documents.setdefault(doc_id, {})
-                                            st.session_state.downloaded_documents[doc_id][doc['type']] = True
-                                            st.rerun()
-                                    
-                                    # Показываем статус скачивания
-                                    if st.session_state.downloaded_documents.get(doc_id, {}).get(doc['type']):
-                                        st.write(f"{doc['name']} скачан")
+                                    display_document_download_button(doc, doc_id)
 
                     if st.button("Создать файлы документов"):
                         for doc_id, details in selected_details.items():
