@@ -1,13 +1,11 @@
 import streamlit as st
 from src.api.api import search_fsa, get_document_details, search_one_fsa
-from src.api.document_file_creator import create_document_file
 from src.auth import authenticator
-from src.utils.certificate_generator import generate_documents
 from src.ui.ui_components import display_search_form, display_results_table
 from config.config import load_config
-import requests
-from src.ui.document_download import display_document_download_button, clear_document_cache
-from src.ui.document_display import display_generated_documents_section
+from src.utils.document_download import clear_document_cache
+from src.utils.document_display import display_generated_documents_section
+from src.utils.document_generator import generate_documents_for_selected
 
 st.set_page_config(layout="wide")
 
@@ -116,19 +114,7 @@ def show_search_interface():
 
                     if st.button("Сгенерировать документы для выбранных заявок"):
                         clear_generated_documents()
-                        
-                        for doc_id, details in selected_details.items():
-                            search_data = selected_search_data.get(doc_id, {})
-                            documents = generate_documents(details, search_data=search_data)
-
-                            if documents:
-                                st.session_state.generated_documents[doc_id] = documents
-                                st.success(f"Документы для заявки {doc_id} успешно сгенерированы!")
-                                with st.expander(f"Данные, использованные для генерации {doc_id}"):
-                                    st.json(documents.get('merged_data', {}))
-                            else:
-                                st.error(f"Не удалось сгенерировать документы для заявки {doc_id}")
-                        
+                        generate_documents_for_selected(selected_details, selected_search_data)
                         st.rerun()
 
                     # Отображение сгенерированных документов и кнопки создания файлов
